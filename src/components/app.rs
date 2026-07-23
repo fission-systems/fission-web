@@ -11,24 +11,55 @@ use fission_ui::{
         bottom_panel::BottomPanel,
         command_palette::CommandPalette,
     },
+    engine::get_server_url,
 };
 use crate::components::dropzone::DropZone;
 
 const STYLE: Asset = asset!("assets/style.css");
+
+/// Ping /api/status and update server_connected in AppState.
+async fn check_server(mut state: Signal<fission_ui::state::AppState>) {
+    let url = get_server_url();
+    let ok = gloo_net::http::Request::get(&format!("{url}/api/status"))
+        .send()
+        .await
+        .map(|r| r.ok())
+        .unwrap_or(false);
+    state.write().server_connected = ok;
+}
 
 #[component]
 pub fn App() -> Element {
     init_app_state();
     let state = use_app_state();
 
+    // ── Server connectivity check (poll every 5 s) ────────────────────────────
+    use_effect(move || {
+        // Initial check immediately
+        let s = state;
+        wasm_bindgen_futures::spawn_local(async move {
+            check_server(s).await;
+        });
+        // Subsequent checks every 5 seconds
+        let interval = gloo_timers::callback::Interval::new(5_000, move || {
+            let s = state;
+            wasm_bindgen_futures::spawn_local(async move {
+                check_server(s).await;
+            });
+        });
+        // Keep the interval alive for the component lifetime
+        interval.forget();
+    });
+
     let has_binary = state.read().binary.is_some();
+    let server_connected = state.read().server_connected;
 
     let (indicator_cls, status_text) = {
         let s = state.read();
-        if s.is_loading_binary   { ("status-indicator busy",     "Loading")     }
-        else if s.is_decompiling { ("status-indicator busy",     "Decompiling") }
-        else if s.binary.is_some() { ("status-indicator ready", "Ready")        }
-        else                     { ("status-indicator inactive", "Idle")         }
+        if s.is_loading_binary     { ("status-indicator busy",     "Loading")     }
+        else if s.is_decompiling   { ("status-indicator busy",     "Decompiling") }
+        else if s.binary.is_some() { ("status-indicator ready",   "Ready")        }
+        else                       { ("status-indicator inactive", "Idle")         }
     };
 
     rsx! {
@@ -86,6 +117,35 @@ pub fn App() -> Element {
                 }
             }
 
+            // ── Server disconnected banner ──────────────────────────────────
+            if !server_connected {
+                div { class: "server-banner",
+                    div { class: "server-banner-icon",
+                        svg {
+                            xmlns: "http://www.w3.org/2000/svg",
+                            width: "16", height: "16",
+                            view_box: "0 0 24 24",
+                            fill: "none", stroke: "currentColor",
+                            stroke_width: "2", stroke_linecap: "round",
+                            circle { cx: "12", cy: "12", r: "10" }
+                            line { x1: "12", y1: "8", x2: "12", y2: "12" }
+                            line { x1: "12", y1: "16", x2: "12.01", y2: "16" }
+                        }
+                    }
+                    span { class: "server-banner-text",
+                        "Backend not reachable — start "
+                        code { "fission_cli serve --port 7331" }
+                        " on your local machine to enable analysis."
+                    }
+                    a {
+                        class: "server-banner-link",
+                        href: "https://github.com/fission-systems/Fission#readme",
+                        target: "_blank",
+                        "Setup guide"
+                    }
+                }
+            }
+
             // ── Main workspace ─────────────────────────────────────────────
             div { class: "main-workspace",
                 if has_binary {
@@ -117,8 +177,12 @@ pub fn App() -> Element {
                     }
                 }
                 div { class: "status-segment status-right",
-                    span { class: "status-hint",
-                        "Analysis runs on your local fission serve instance"
+                    if server_connected {
+                        div { class: "status-indicator ready" }
+                        span { class: "status-hint", "fission serve connected" }
+                    } else {
+                        div { class: "status-indicator busy" }
+                        span { class: "status-hint status-hint-warn", "fission serve not running" }
                     }
                 }
             }

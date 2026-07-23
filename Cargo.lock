@@ -1491,6 +1491,7 @@ dependencies = [
  "dioxus",
  "dioxus-logger",
  "fission-ui",
+ "gloo-net",
  "gloo-timers",
  "js-sys",
  "serde",
