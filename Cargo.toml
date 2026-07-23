@@ -20,6 +20,7 @@ web-sys = { version = "0.3", features = [
   "File", "FileList", "FileReader",
   "HtmlInputElement", "Event", "EventTarget",
   "DragEvent", "DataTransfer",
+  "ProgressEvent",
   "console",
 ] }
 js-sys = "0.3"

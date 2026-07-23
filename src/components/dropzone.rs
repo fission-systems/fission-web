@@ -2,12 +2,11 @@
 //! Web-specific: uses web-sys FileReader to load binary bytes from the browser.
 //! The actual loading logic (load_binary_from_bytes_blocking) lives in fission-ui.
 
-use crate::state::use_app_state;
 use dioxus::prelude::*;
 use dioxus::web::WebEventExt;
 use fission_ui::{
     engine::{run_load, LoadResult},
-    state::{AppState, LogEntry},
+    state::{AppState, LogEntry, use_app_state},
 };
 use wasm_bindgen::JsCast;
 use web_sys::{FileReader, ProgressEvent};

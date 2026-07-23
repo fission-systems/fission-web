@@ -2,15 +2,17 @@
 //! Platform-specific: title bar (HTML5 file input), dropzone.
 //! Shared components (Sidebar, Editor, BottomPanel, etc.) come from fission-ui.
 
-use crate::state::{AppState, LogEntry, init_app_state, use_app_state};
-use crate::components::dropzone::DropZone;
 use dioxus::prelude::*;
-use fission_ui::components::{
-    sidebar::Sidebar,
-    editor::Editor,
-    bottom_panel::BottomPanel,
-    command_palette::CommandPalette,
+use fission_ui::{
+    state::{AppState, LogEntry, init_app_state, use_app_state},
+    components::{
+        sidebar::Sidebar,
+        editor::Editor,
+        bottom_panel::BottomPanel,
+        command_palette::CommandPalette,
+    },
 };
+use crate::components::dropzone::DropZone;
 
 const STYLE: Asset = asset!("/assets/style.css");
 
