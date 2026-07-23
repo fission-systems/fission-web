@@ -82,13 +82,13 @@ jobs:
       - name: Deploy to Vercel (preview)
         if: github.event_name == 'pull_request'
         run: |
-          vercel deploy "$DX_OUT" \
+          vercel deploy "$DX_OUT" --yes \
             --token=${{ secrets.VERCEL_TOKEN }} \
             --scope=${{ secrets.VERCEL_ORG_ID }}
 
       - name: Deploy to Vercel (production)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
-          vercel deploy "$DX_OUT" --prod \
+          vercel deploy "$DX_OUT" --prod --yes \
             --token=${{ secrets.VERCEL_TOKEN }} \
             --scope=${{ secrets.VERCEL_ORG_ID }}
