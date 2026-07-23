@@ -4,6 +4,7 @@
 
 use crate::state::use_app_state;
 use dioxus::prelude::*;
+use dioxus::web::WebEventExt;
 use fission_ui::{
     engine::{run_load, LoadResult},
     state::{AppState, LogEntry},
@@ -23,7 +24,7 @@ fn read_file_and_load(file: web_sys::File, mut sig: Signal<AppState>) {
         let bytes  = array.to_vec();
 
         // Kick off async load via fission-ui engine (wasm32 path: no spawn_blocking)
-        wasm_bindgen_futures::spawn_local(async move {
+        spawn(async move {
             {
                 let mut s = sig.write();
                 s.is_loading_binary = true;
@@ -57,7 +58,7 @@ fn read_file_and_load(file: web_sys::File, mut sig: Signal<AppState>) {
 pub fn DropZone() -> Element {
     let state       = use_app_state();
     let is_dragging = use_signal(|| false);
-    let mut dragging = is_dragging.clone();
+    let mut dragging = is_dragging;
 
     let drag_cls = if *is_dragging.read() { "dropzone is-dragging" } else { "dropzone" };
 

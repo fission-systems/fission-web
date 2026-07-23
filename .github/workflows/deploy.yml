@@ -38,11 +38,11 @@ jobs:
 
       - name: Install Dioxus CLI
         run: |
-          # Use binstall for fast binary install, fall back to source compile
+          # Use binstall for fast binary install (no source compilation)
           curl -L --proto '=https' --tlsv1.2 -sSf \
             https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh \
             | bash
-          cargo binstall dioxus-cli@0.6.3 --no-confirm
+          cargo binstall dioxus-cli --no-confirm
 
       # ── fission-utils (sleigh specs + signatures) ─────────────────────────
 
