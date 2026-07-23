@@ -36,10 +36,11 @@ fn read_file_and_load(file: web_sys::File, mut sig: Signal<AppState>) {
             match run_load(bytes, name_clone.clone()).await {
                 Ok(load) => {
                     let mut s = sig.write();
-                    s.binary_name       = Some(name_clone);
-                    s.binary            = load.binary;
-                    s.functions         = load.functions;
-                    s.is_loading_binary = false;
+                    s.binary_name        = Some(name_clone);
+                    s.binary             = load.binary;
+                    s.functions          = load.functions;
+                    s.server_session_id  = load.session_id;
+                    s.is_loading_binary  = false;
                     s.push_log(LogEntry::info(load.summary));
                 }
                 Err(e) => {
