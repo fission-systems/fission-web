@@ -27,11 +27,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 gloo-timers = { version = "0.3", features = ["futures"] }
 
-# Fission core — git dependency (computation runs locally in WASM)
-fission-loader     = { git = "https://github.com/fission-systems/Fission", default-features = false }
-fission-decompiler = { git = "https://github.com/fission-systems/Fission", default-features = false }
-fission-static     = { git = "https://github.com/fission-systems/Fission", default-features = false }
-fission-pcode      = { git = "https://github.com/fission-systems/Fission", default-features = false }
+# Fission shared UI — git dependency (includes state, engine, components)
+fission-ui = { git = "https://github.com/fission-systems/Fission", default-features = false }
 
 [profile.release]
 opt-level = "z"     # minimize WASM size
