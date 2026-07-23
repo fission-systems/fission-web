@@ -37,7 +37,12 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
 
       - name: Install Dioxus CLI
-        run: cargo install dioxus-cli --locked
+        run: |
+          # Use binstall for fast binary install, fall back to source compile
+          curl -L --proto '=https' --tlsv1.2 -sSf \
+            https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh \
+            | bash
+          cargo binstall dioxus-cli@0.6.3 --no-confirm
 
       # ── fission-utils (sleigh specs + signatures) ─────────────────────────
 
