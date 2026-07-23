@@ -118,7 +118,7 @@ pub fn App() -> Element {
                 }
                 div { class: "status-segment status-right",
                     span { class: "status-hint",
-                        "All computation runs locally in your browser"
+                        "Analysis runs on your local fission serve instance"
                     }
                 }
             }
