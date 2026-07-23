@@ -33,8 +33,8 @@ fn read_file_and_load(file: web_sys::File, mut sig: Signal<AppState>) {
             match run_load(bytes, name_clone.clone()).await {
                 Ok(load) => {
                     let mut s = sig.write();
-                    s.binary_name       = Some(load.binary.format.clone());
-                    s.binary            = Some(std::sync::Arc::clone(&load.binary));
+                    s.binary_name       = Some(name_clone);
+                    s.binary            = load.binary;
                     s.functions         = load.functions;
                     s.is_loading_binary = false;
                     s.push_log(LogEntry::info(load.summary));
