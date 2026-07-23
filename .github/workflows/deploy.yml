@@ -48,6 +48,7 @@ jobs:
 
       - name: Download fission-utils bundle
         run: |
+          # Bundle contains utils/ prefix internally — extract to workspace root
           curl -fsSL \
             "https://github.com/fission-systems/Fission/releases/download/${{ env.FISSION_UTILS_TAG }}/fission-utils.tar.gz" \
             | tar -xz -C ./
@@ -55,11 +56,23 @@ jobs:
 
       # ── Build ─────────────────────────────────────────────────────────────
 
-      - name: Cargo check (wasm32) — show real errors
+      - name: Cargo build (wasm32) — show real errors on failure
         run: cargo build --target wasm32-unknown-unknown --release 2>&1
 
       - name: Build WASM (release)
+        # dioxus 0.7 output: target/dx/<name>/release/web/public
         run: dx build --platform web --release
+
+      - name: Locate and verify build output
+        run: |
+          echo "=== dx build output tree ==="
+          find target/dx -name "index.html" 2>/dev/null || echo "WARNING: No index.html found"
+          DX_OUT=$(find target/dx -name "index.html" -exec dirname {} \; 2>/dev/null | head -1)
+          if [ -z "$DX_OUT" ]; then
+            echo "ERROR: could not locate build output"; exit 1
+          fi
+          echo "DX_OUT=$DX_OUT" >> $GITHUB_ENV
+          echo "Build output: $DX_OUT"
 
       # ── Deploy ────────────────────────────────────────────────────────────
 
@@ -69,13 +82,13 @@ jobs:
       - name: Deploy to Vercel (preview)
         if: github.event_name == 'pull_request'
         run: |
-          vercel deploy dist/ \
+          vercel deploy "$DX_OUT" \
             --token=${{ secrets.VERCEL_TOKEN }} \
             --scope=${{ secrets.VERCEL_ORG_ID }}
 
       - name: Deploy to Vercel (production)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
-          vercel deploy dist/ --prod \
+          vercel deploy "$DX_OUT" --prod \
             --token=${{ secrets.VERCEL_TOKEN }} \
             --scope=${{ secrets.VERCEL_ORG_ID }}
