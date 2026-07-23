@@ -14,7 +14,7 @@ use fission_ui::{
 };
 use crate::components::dropzone::DropZone;
 
-const STYLE: Asset = asset!("/assets/style.css");
+const STYLE: Asset = asset!("assets/style.css");
 
 #[component]
 pub fn App() -> Element {
