@@ -5,7 +5,7 @@
 use dioxus::prelude::*;
 use dioxus::web::WebEventExt;
 use fission_ui::{
-    engine::{run_load, LoadResult},
+    engine::run_load,
     state::{AppState, LogEntry, use_app_state},
 };
 use wasm_bindgen::JsCast;

@@ -4,7 +4,7 @@
 
 use dioxus::prelude::*;
 use fission_ui::{
-    state::{AppState, LogEntry, init_app_state, use_app_state},
+    state::{init_app_state, use_app_state},
     components::{
         sidebar::Sidebar,
         editor::Editor,
