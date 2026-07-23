@@ -1,0 +1,39 @@
+[package]
+name = "fission-web"
+version = "0.1.0"
+edition = "2021"
+description = "Fission decompiler — browser-native interface (Dioxus WASM)"
+repository = "https://github.com/fission-systems/fission-web"
+license = "AGPL-3.0-or-later"
+
+[[bin]]
+name = "fission-web"
+path = "src/main.rs"
+
+[dependencies]
+dioxus = { version = "0.6", features = ["web"] }
+dioxus-logger = "0.6"
+tracing = "0.1"
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = [
+  "File", "FileList", "FileReader",
+  "HtmlInputElement", "Event", "EventTarget",
+  "DragEvent", "DataTransfer",
+  "console",
+] }
+js-sys = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+gloo-timers = { version = "0.3", features = ["futures"] }
+
+# Fission core — git dependency (computation runs locally in WASM)
+fission-loader     = { git = "https://github.com/fission-systems/Fission", default-features = false }
+fission-decompiler = { git = "https://github.com/fission-systems/Fission", default-features = false }
+fission-static     = { git = "https://github.com/fission-systems/Fission", default-features = false }
+fission-pcode      = { git = "https://github.com/fission-systems/Fission", default-features = false }
+
+[profile.release]
+opt-level = "z"     # minimize WASM size
+lto = true
+codegen-units = 1

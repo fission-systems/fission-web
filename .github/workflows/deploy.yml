@@ -1,0 +1,76 @@
+name: Deploy to Vercel
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  # fission-utils release tag — update when a new utils bundle is published
+  FISSION_UTILS_TAG: assets-v1
+
+jobs:
+  build-and-deploy:
+    name: Build WASM + Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout fission-web
+        uses: actions/checkout@v4
+
+      # ── Rust / WASM toolchain ─────────────────────────────────────────────
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Cargo registry + git deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Install Dioxus CLI
+        run: cargo install dioxus-cli --locked
+
+      # ── fission-utils (sleigh specs + signatures) ─────────────────────────
+
+      - name: Download fission-utils bundle
+        run: |
+          mkdir -p utils
+          curl -fsSL \
+            "https://github.com/fission-systems/Fission/releases/download/${{ env.FISSION_UTILS_TAG }}/fission-utils.tar.gz" \
+            | tar -xz -C utils/
+          echo "FISSION_SLEIGH_SPEC_DIR=$PWD/utils/sleigh-specs" >> $GITHUB_ENV
+
+      # ── Build ─────────────────────────────────────────────────────────────
+
+      - name: Build WASM (release)
+        run: dx build --platform web --release
+
+      # ── Deploy ────────────────────────────────────────────────────────────
+
+      - name: Deploy to Vercel (preview)
+        if: github.event_name == 'pull_request'
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: dist
+
+      - name: Deploy to Vercel (production)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: --prod
+          working-directory: dist

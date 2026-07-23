@@ -1,0 +1,15 @@
+# fission-web Cargo configuration
+#
+# Sets FISSION_SLEIGH_SPEC_DIR so that fission-sleigh's build.rs can locate
+# the language manifest JSON at compile time.
+#
+# In CI this variable is overridden by the workflow (after downloading the
+# fission-utils release bundle). For local development, place the utils bundle
+# at the path below or set the env var manually.
+#
+# See: ../Fission/crates/fission-sleigh/build.toml for the full resolution docs.
+
+[env]
+# Points to the sleigh-specs/ directory extracted from fission-utils.tar.gz.
+# Relative paths are resolved from the workspace root (this directory).
+FISSION_SLEIGH_SPEC_DIR = { value = "utils/sleigh-specs", relative = true }

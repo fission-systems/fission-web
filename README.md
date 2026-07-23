@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# fission-web
 
-## Getting Started
+Browser-native decompiler interface for [Fission](https://github.com/fission-systems/Fission).
 
-First, run the development server:
+Built with [Dioxus](https://dioxuslabs.com/) — compiles to WebAssembly and runs entirely in the user's browser.
+**No binary data is ever sent to a server.**
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Architecture
+
+```
+Vercel (static files only)
+  └── fission-web.wasm  ← runs in the user's browser
+        ├── fission-loader     (binary parsing)
+        ├── fission-decompiler (pseudocode generation)
+        └── fission-static     (analysis services)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+All decompilation computation happens on the **user's CPU** via WebAssembly.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Development
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# Install Dioxus CLI
+cargo install dioxus-cli
 
-## Learn More
+# Add WASM target
+rustup target add wasm32-unknown-unknown
 
-To learn more about Next.js, take a look at the following resources:
+# Run dev server (hot-reload)
+dx serve --platform web
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Production build
+dx build --platform web --release
+# Output: ./dist/
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deploy
 
-## Deploy on Vercel
+Configured for [Vercel](https://vercel.com) via `vercel.json`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+vercel deploy --prod
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Related
+
+- [fission-systems/Fission](https://github.com/fission-systems/Fission) — core decompiler engine
+- [fission-systems/fission-benchmark](https://github.com/fission-systems/fission-benchmark) — quality benchmarks
