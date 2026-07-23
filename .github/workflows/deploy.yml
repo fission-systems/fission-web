@@ -48,10 +48,9 @@ jobs:
 
       - name: Download fission-utils bundle
         run: |
-          mkdir -p utils
           curl -fsSL \
             "https://github.com/fission-systems/Fission/releases/download/${{ env.FISSION_UTILS_TAG }}/fission-utils.tar.gz" \
-            | tar -xz -C utils/
+            | tar -xz -C ./
           echo "FISSION_SLEIGH_SPEC_DIR=$PWD/utils/sleigh-specs" >> $GITHUB_ENV
 
       # ── Build ─────────────────────────────────────────────────────────────
