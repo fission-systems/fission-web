@@ -22,8 +22,11 @@ fn read_file_and_load(file: web_sys::File, mut sig: Signal<AppState>) {
         let array  = js_sys::Uint8Array::new(&result);
         let bytes  = array.to_vec();
 
-        // Kick off async load via fission-ui engine (wasm32 path: no spawn_blocking)
-        spawn(async move {
+        // Use wasm_bindgen_futures::spawn_local instead of Dioxus spawn.
+        // The FileReader onload callback fires from a JS event loop context
+        // outside any Dioxus render/hook scope, so Dioxus spawn would panic
+        // with "called Option::unwrap() on a None value" in the runtime.
+        wasm_bindgen_futures::spawn_local(async move {
             {
                 let mut s = sig.write();
                 s.is_loading_binary = true;
