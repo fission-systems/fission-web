@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "echo 'Build handled by GitHub Actions'",
+  "outputDirectory": ".",
   "cleanUrls": true
 }
