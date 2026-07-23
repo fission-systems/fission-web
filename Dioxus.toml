@@ -4,10 +4,3 @@ default_platform = "web"
 
 [web.app]
 title = "Fission Web"
-
-[web.watcher]
-reload_html = true
-
-[web.resource]
-style = []
-script = []
