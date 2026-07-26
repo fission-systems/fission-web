@@ -12,20 +12,27 @@ use fission_ui::{
         command_palette::CommandPalette,
     },
     engine::get_server_url,
+    protocol::{ResourceAccessMode, StatusResponse},
 };
-use crate::components::dropzone::DropZone;
+use crate::components::dropzone::{DropZone, read_file_and_load};
+use dioxus::web::WebEventExt;
+use wasm_bindgen::JsCast;
 
 const STYLE: Asset = asset!("assets/style.css");
 
 /// Ping /api/status and update server_connected in AppState.
 async fn check_server(mut state: Signal<fission_ui::state::AppState>) {
     let url = get_server_url();
-    let ok = gloo_net::http::Request::get(&format!("{url}/api/status"))
+    let status = match gloo_net::http::Request::get(&format!("{url}/api/status"))
         .send()
         .await
-        .map(|r| r.ok())
-        .unwrap_or(false);
-    state.write().server_connected = ok;
+    {
+        Ok(response) if response.ok() => response.json::<StatusResponse>().await.ok(),
+        _ => None,
+    };
+    let mut app = state.write();
+    app.server_connected = status.is_some();
+    app.backend_status = status;
 }
 
 #[component]
@@ -51,8 +58,29 @@ pub fn App() -> Element {
         interval.forget();
     });
 
-    let has_binary = state.read().binary.is_some();
+    let has_binary = state.read().binary_name.is_some();
     let server_connected = state.read().server_connected;
+    let resource_status = state.read().backend_status.clone();
+    let resource_text = resource_status.as_ref().map(|status| {
+        let location = match status.capabilities.resource_access {
+            ResourceAccessMode::HostFilesystem => "host filesystem",
+            ResourceAccessMode::BrowserSelectedBundle => "selected browser bundle",
+            ResourceAccessMode::PackagedArtifacts => "packaged artifacts",
+        };
+        let sleigh = if status.resources.sleigh_artifacts {
+            "SLEIGH ready"
+        } else {
+            "SLEIGH missing"
+        };
+        let signatures = if status.resources.signatures {
+            "signatures ready"
+        } else {
+            "signatures optional"
+        };
+        format!("{location} · {sleigh} · {signatures}")
+    });
+    let backend_hint =
+        resource_text.unwrap_or_else(|| "resource status unavailable".to_string());
 
     let (indicator_cls, status_text) = {
         let s = state.read();
@@ -112,7 +140,21 @@ pub fn App() -> Element {
                         id: "file-input-web",
                         r#type: "file",
                         style: "display:none",
-                        onchange: move |_| {}
+                        onchange: move |evt| {
+                            if let Some(input) = evt
+                                .as_web_event()
+                                .target()
+                                .and_then(|target| {
+                                    target.dyn_into::<web_sys::HtmlInputElement>().ok()
+                                })
+                            {
+                                if let Some(files) = input.files() {
+                                    if let Some(file) = files.get(0) {
+                                        read_file_and_load(file, state);
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -179,7 +221,11 @@ pub fn App() -> Element {
                 div { class: "status-segment status-right",
                     if server_connected {
                         div { class: "status-indicator ready" }
-                        span { class: "status-hint", "fission serve connected" }
+                        span {
+                            class: "status-hint",
+                            title: "Browser code cannot read arbitrary local paths. The local backend resolves FISSION_RESOURCE_ROOT and installed/workspace resources.",
+                            "fission serve · {backend_hint}"
+                        }
                     } else {
                         div { class: "status-indicator busy" }
                         span { class: "status-hint status-hint-warn", "fission serve not running" }

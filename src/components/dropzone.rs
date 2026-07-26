@@ -11,7 +11,7 @@ use fission_ui::{
 use wasm_bindgen::JsCast;
 use web_sys::{FileReader, ProgressEvent};
 
-fn read_file_and_load(file: web_sys::File, mut sig: Signal<AppState>) {
+pub(crate) fn read_file_and_load(file: web_sys::File, mut sig: Signal<AppState>) {
     let name  = file.name();
     let reader = FileReader::new().unwrap();
     let reader_clone = reader.clone();

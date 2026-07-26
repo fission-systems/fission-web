@@ -82,6 +82,23 @@ Decompilation is inherently CPU-intensive and depends on native Rust libraries (
 
 The chosen architecture (Option A) keeps the UI lightweight — only the Dioxus component tree, state management, and HTTP client compile to WASM. The heavyweight Rust logic stays on the user's local machine via `fission serve`.
 
+### Local resource model
+
+Yes, Fission resources can run from the user's local machine. In the current
+web architecture the browser does not read those paths itself. The local
+`fission serve` process resolves SLEIGH artifacts, signatures, FID data, and
+type information through Fission's normal resource configuration:
+
+- `--resource-root <path>` when the server is started through a supporting CLI
+- `FISSION_RESOURCE_ROOT` for signature/type/FID bundles
+- `FISSION_SLEIGH_SPEC_DIR` for the SLEIGH resource tree
+- installed, user-data, and Fission workspace resource locations
+
+`GET /api/status` reports the backend resource mode and availability without
+exposing absolute host paths. A future in-browser analysis worker must instead
+use a bundle explicitly selected by the user or versioned packaged artifacts;
+web pages cannot automatically open arbitrary local filesystem paths.
+
 ---
 
 ## Quick Start
