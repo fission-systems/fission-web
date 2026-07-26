@@ -99,6 +99,20 @@ exposing absolute host paths. A future in-browser analysis worker must instead
 use a bundle explicitly selected by the user or versioned packaged artifacts;
 web pages cannot automatically open arbitrary local filesystem paths.
 
+### Railway cloud backend
+
+The same UI can connect to an internet-hosted `fission-serve` deployment. The
+canonical Railway container and deployment configuration live in the Fission
+repository:
+
+- [`Dockerfile`](https://github.com/fission-systems/Fission/blob/main/Dockerfile)
+- [`railway.json`](https://github.com/fission-systems/Fission/blob/main/railway.json)
+- [Railway deployment guide](https://github.com/fission-systems/Fission/blob/main/docs/RAILWAY.md)
+
+Set `FISSION_WEB_API_URL` to the Railway HTTPS domain when building the WASM
+frontend. Enter `FISSION_SERVE_API_TOKEN` through the connection banner at
+runtime. Never compile that token into the WASM bundle.
+
 ---
 
 ## Quick Start

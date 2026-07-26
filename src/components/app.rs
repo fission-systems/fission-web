@@ -11,8 +11,10 @@ use fission_ui::{
         bottom_panel::BottomPanel,
         command_palette::CommandPalette,
     },
-    engine::get_server_url,
-    protocol::{ResourceAccessMode, StatusResponse},
+    engine::{
+        fetch_server_status, get_server_url, set_server_api_token, set_server_url,
+    },
+    protocol::{AnalysisBackendKind, ResourceAccessMode},
 };
 use crate::components::dropzone::{DropZone, read_file_and_load};
 use dioxus::web::WebEventExt;
@@ -22,14 +24,7 @@ const STYLE: Asset = asset!("assets/style.css");
 
 /// Ping /api/status and update server_connected in AppState.
 async fn check_server(mut state: Signal<fission_ui::state::AppState>) {
-    let url = get_server_url();
-    let status = match gloo_net::http::Request::get(&format!("{url}/api/status"))
-        .send()
-        .await
-    {
-        Ok(response) if response.ok() => response.json::<StatusResponse>().await.ok(),
-        _ => None,
-    };
+    let status = fetch_server_status().await.ok();
     let mut app = state.write();
     app.server_connected = status.is_some();
     app.backend_status = status;
@@ -38,7 +33,9 @@ async fn check_server(mut state: Signal<fission_ui::state::AppState>) {
 #[component]
 pub fn App() -> Element {
     init_app_state();
-    let state = use_app_state();
+    let mut state = use_app_state();
+    let mut backend_url = use_signal(get_server_url);
+    let mut api_token = use_signal(String::new);
 
     // ── Server connectivity check (poll every 5 s) ────────────────────────────
     use_effect(move || {
@@ -61,6 +58,15 @@ pub fn App() -> Element {
     let has_binary = state.read().binary_name.is_some();
     let server_connected = state.read().server_connected;
     let resource_status = state.read().backend_status.clone();
+    let backend_name = resource_status
+        .as_ref()
+        .map(|status| match status.capabilities.backend {
+            AnalysisBackendKind::NativeProcess => "native",
+            AnalysisBackendKind::LocalHttp => "local",
+            AnalysisBackendKind::CloudHttp => "cloud",
+            AnalysisBackendKind::BrowserWorker => "browser worker",
+        })
+        .unwrap_or("backend");
     let resource_text = resource_status.as_ref().map(|status| {
         let location = match status.capabilities.resource_access {
             ResourceAccessMode::HostFilesystem => "host filesystem",
@@ -175,13 +181,48 @@ pub fn App() -> Element {
                         }
                     }
                     span { class: "server-banner-text",
-                        "Backend not reachable — start "
-                        code { "fission_cli serve --port 7331" }
-                        " on your local machine to enable analysis."
+                        "Connect to a local or Railway-hosted Fission backend."
+                    }
+                    div { class: "backend-connect",
+                        input {
+                            class: "backend-input backend-url-input",
+                            r#type: "url",
+                            value: "{backend_url}",
+                            placeholder: "https://fission-api.up.railway.app",
+                            aria_label: "Fission backend URL",
+                            oninput: move |event| {
+                                *backend_url.write() = event.value();
+                            }
+                        }
+                        input {
+                            class: "backend-input backend-token-input",
+                            r#type: "password",
+                            value: "{api_token}",
+                            placeholder: "API token (cloud only)",
+                            autocomplete: "off",
+                            aria_label: "Fission backend API token",
+                            oninput: move |event| {
+                                *api_token.write() = event.value();
+                            }
+                        }
+                        button {
+                            class: "backend-connect-btn",
+                            onclick: move |_| {
+                                let url = backend_url.read().trim().to_string();
+                                let token = api_token.read().clone();
+                                set_server_url(url.clone());
+                                set_server_api_token(token);
+                                state.write().server_url = url;
+                                wasm_bindgen_futures::spawn_local(async move {
+                                    check_server(state).await;
+                                });
+                            },
+                            "Connect"
+                        }
                     }
                     a {
                         class: "server-banner-link",
-                        href: "https://github.com/fission-systems/Fission#readme",
+                        href: "https://github.com/fission-systems/Fission/blob/main/docs/RAILWAY.md",
                         target: "_blank",
                         "Setup guide"
                     }
@@ -223,8 +264,8 @@ pub fn App() -> Element {
                         div { class: "status-indicator ready" }
                         span {
                             class: "status-hint",
-                            title: "Browser code cannot read arbitrary local paths. The local backend resolves FISSION_RESOURCE_ROOT and installed/workspace resources.",
-                            "fission serve · {backend_hint}"
+                            title: "Resource mode and availability reported by the connected Fission backend.",
+                            "fission {backend_name} · {backend_hint}"
                         }
                     } else {
                         div { class: "status-indicator busy" }
