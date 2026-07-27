@@ -1,29 +1,31 @@
+# Railway's edge proxies to this container through *multiple* internal
+# hops with no single documented CIDR (observed: a rotating 100.64.0.0/10
+# peer, plus a second, also-rotating 152.233.33.0/24-ish hop in
+# X-Forwarded-For before it) -- `ngx_http_realip_module`'s CIDR-based trust
+# chain (`set_real_ip_from`/`real_ip_recursive`) stops at the first
+# untrusted-looking hop, which was the *second* Railway hop here, not the
+# real client, so it under-resolved. Simpler and robust to not knowing
+# Railway's exact edge topology: take the *first* (leftmost) entry of
+# X-Forwarded-For directly -- that's consistently the real client's IP in
+# every request observed (Railway's edge sets it; curl here never sends
+# its own X-Forwarded-For), regardless of how many internal hops follow.
+# Falls back to $remote_addr if the header is somehow absent.
+map $http_x_forwarded_for $client_ip {
+    ""                          $remote_addr;
+    "~^(?<first_ip>[^,\s]+)"    $first_ip;
+}
+
 # Per-client-IP rate limit for the API gateway, replacing bearer-token auth
 # as the abuse guard now that /api/* no longer requires a token. 10 MB zone
 # (~160k tracked IPs), 10 req/s sustained with a burst of 20 before requests
 # start getting rejected (429), not delayed (`nodelay`) -- decompile calls
 # are CPU-heavy on the backend, so bursts should fail fast, not queue.
-limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
+limit_req_zone $client_ip zone=api_limit:10m rate=10r/s;
 
 server {
     listen ${PORT};
     listen [::]:${PORT};
     server_name _;
-
-    # Railway's edge terminates the real client connection and proxies to
-    # this container from a rotating internal pool (observed: 100.64.0.0/10,
-    # CGNAT space, a *different* address on nearly every request) -- without
-    # this, `$binary_remote_addr` below sees that rotating edge IP, not the
-    # real client, and `limit_req` effectively rate-limits nothing (every
-    # request looks like a brand-new "IP"). `real_ip` resolves `$remote_addr`
-    # (and everything derived from it, including `$binary_remote_addr`) from
-    # the trusted `X-Forwarded-For` hop instead, only when the connecting
-    # peer is itself in that trusted range -- so a client can't spoof its
-    # way around this by setting its own `X-Forwarded-For`, only Railway's
-    # own edge (the actual TCP peer) is trusted to set it.
-    set_real_ip_from 100.64.0.0/10;
-    real_ip_header X-Forwarded-For;
-    real_ip_recursive on;
 
     root /usr/share/nginx/html;
     index index.html;
