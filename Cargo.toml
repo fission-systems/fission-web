@@ -30,8 +30,13 @@ gloo-timers = { version = "0.3", features = ["futures"] }
 gloo-net = { version = "0.6", features = ["http"] }
 console_error_panic_hook = "0.1"
 
-# Fission shared UI — git dependency (includes state, engine, components)
-fission-ui = { git = "https://github.com/fission-systems/Fission", default-features = false }
+# Fission shared UI — git dependency (includes state, engine, components).
+# Pinned to an exact commit, not `main` HEAD: fission-web now deploys per
+# Fission release, not on every push. `fission-ui` didn't exist yet as of
+# the last cut release (v0.1.6), so there's no tag to pin to until v0.1.7
+# ships -- switch this to `tag = "v0.1.7"` (dropping `rev`) at that point,
+# and re-tag fission-web to match.
+fission-ui = { git = "https://github.com/fission-systems/Fission", rev = "f0dec1f779ca46feb90b6c73c519053c8bbadaf8", default-features = false }
 
 [profile.release]
 opt-level = "z"     # minimize WASM size

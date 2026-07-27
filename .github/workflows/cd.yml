@@ -1,0 +1,40 @@
+name: CD Deploy
+
+# fission-web deploys per Fission release, not on every push to main.
+# Tag this repo (vX.Y.Z, matching the Fission tag its `fission-ui` git
+# dependency is pinned to in Cargo.toml) to ship. Railway's own GitHub
+# auto-deploy is disabled -- this is the only thing that ships production.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+      - "[0-9]*.[0-9]*.[0-9]*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to deploy (e.g. v0.1.7)"
+        required: true
+        type: string
+
+concurrency:
+  group: cd-deploy-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-railway-web:
+    name: 🚂 Deploy fission-web (Railway)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout tagged commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --service fission-web --ci --yes
