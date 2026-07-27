@@ -518,7 +518,9 @@ fission-backend.railway.internal:7331
 
 `client_max_body_size` is aligned with the backend's 50 MB upload limit.
 `FISSION_BACKEND_HOST` and `FISSION_BACKEND_PORT` can override the internal
-target without rebuilding the image.
+target without rebuilding the image. Nginx re-resolves Railway's internal DNS
+so backend replacement deployments do not leave the gateway pinned to a stale
+container address.
 
 ---
 
