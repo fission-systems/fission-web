@@ -2,7 +2,9 @@
 
 Browser-native interface for [Fission](https://github.com/fission-systems/Fission) — a Rust-first reverse-engineering and decompilation platform.
 
-Built with [Dioxus](https://dioxuslabs.com/) and compiled to WebAssembly. The UI runs in the browser; all decompilation and analysis work runs on a local `fission serve` backend via a REST API.
+Built with [Dioxus](https://dioxuslabs.com/) and compiled to WebAssembly. Railway
+serves the static UI and proxies same-origin `/api/*` requests to a private
+`fission-backend` service over Railway's internal network.
 
 ---
 
@@ -25,13 +27,12 @@ Built with [Dioxus](https://dioxuslabs.com/) and compiled to WebAssembly. The UI
   - [GET /api/xrefs/:addr](#get-apixrefsaddr)
 - [CI / CD](#ci--cd)
   - [GitHub Actions Workflow](#github-actions-workflow)
-  - [Vercel Deployment](#vercel-deployment)
-  - [Required Secrets](#required-secrets)
+  - [Railway Deployment](#railway-deployment)
 - [Repository Layout](#repository-layout)
 - [Configuration](#configuration)
   - [Dioxus.toml](#dioxustoml)
-  - [vercel.json](#verceljson)
-  - [Server Port](#server-port)
+  - [railway.json](#railwayjson)
+  - [Nginx Gateway](#nginx-gateway)
 - [Crate Dependencies](#crate-dependencies)
 - [WASM Constraints](#wasm-constraints)
 - [Troubleshooting](#troubleshooting)
@@ -44,27 +45,16 @@ Built with [Dioxus](https://dioxuslabs.com/) and compiled to WebAssembly. The UI
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  Browser (Vercel static hosting)                     │
-│                                                      │
-│  fission-web (Dioxus WASM)                           │
-│  ├── Sidebar       — function list, search, nav      │
-│  ├── Editor        — pseudocode / NIR / hex view     │
-│  ├── BottomPanel   — logs, CFG, xrefs               │
-│  ├── CommandPalette — fuzzy function search          │
-│  └── DropZone      — file upload (FileReader API)   │
-│               │                                      │
-│               │  HTTP (localhost:7331)               │
-└───────────────┼──────────────────────────────────────┘
-                │
-┌───────────────▼──────────────────────────────────────┐
-│  fission serve  (Rust / Axum — runs locally)         │
-│                                                      │
-│  POST /api/binary          ← upload binary           │
-│  GET  /api/functions       ← list functions          │
-│  POST /api/decompile/:addr ← decompile one function  │
-│  GET  /api/xrefs/:addr     ← cross-references        │
-│  GET  /api/status          ← server health           │
-│                                                      │
+│  Browser                                             │
+│    │ same-origin HTTPS                               │
+│    ▼                                                 │
+│  Railway: fission-web (Nginx + Dioxus WASM)          │
+│    ├── /assets/*  → static WASM/CSS                  │
+│    └── /api/*     → private-network reverse proxy    │
+└───────────────────────┬──────────────────────────────┘
+                        │ railway.internal:7331
+┌───────────────────────▼──────────────────────────────┐
+│  Railway: fission-backend (Rust / Axum, private)     │
 │  ├── fission-loader     — PE/ELF/Mach-O parsing      │
 │  ├── fission-decompiler — Rust-Sleigh pipeline       │
 │  ├── fission-static     — xrefs, discovery           │
@@ -80,7 +70,10 @@ Decompilation is inherently CPU-intensive and depends on native Rust libraries (
 - The decompilation pipeline uses `rayon`/`tokio` thread pools
 - Binary parsing allocates large memory buffers incompatible with WASM memory limits
 
-The chosen architecture (Option A) keeps the UI lightweight — only the Dioxus component tree, state management, and HTTP client compile to WASM. The heavyweight Rust logic stays on the user's local machine via `fission serve`.
+The UI remains lightweight: only the Dioxus component tree, state management,
+and HTTP client compile to WASM. The heavyweight Rust logic runs in the private
+Railway backend. Nginx is the single public gateway, which avoids cross-origin
+browser traffic and keeps the backend service off the public internet.
 
 ### Local resource model
 
@@ -101,17 +94,17 @@ web pages cannot automatically open arbitrary local filesystem paths.
 
 ### Railway cloud backend
 
-The same UI can connect to an internet-hosted `fission-serve` deployment. The
-canonical Railway container and deployment configuration live in the Fission
-repository:
+The canonical backend container and deployment configuration live in the
+Fission repository:
 
 - [`Dockerfile`](https://github.com/fission-systems/Fission/blob/main/Dockerfile)
 - [`railway.json`](https://github.com/fission-systems/Fission/blob/main/railway.json)
 - [Railway deployment guide](https://github.com/fission-systems/Fission/blob/main/docs/RAILWAY.md)
 
-Set `FISSION_WEB_API_URL` to the Railway HTTPS domain when building the WASM
-frontend. Enter `FISSION_SERVE_API_TOKEN` through the connection banner at
-runtime. Never compile that token into the WASM bundle.
+The production frontend is built with an empty `FISSION_WEB_API_URL`, so the
+client uses its current origin and Nginx forwards `/api/*` privately. Enter
+`FISSION_SERVE_API_TOKEN` through the connection banner at runtime. Never
+compile that token into the WASM bundle.
 
 ---
 
@@ -150,7 +143,8 @@ The server keeps the loaded binary in memory for the duration of the session. Re
 
 ### Open the Web UI
 
-Navigate to the deployed Vercel URL or run a local dev build (see [Local Dev Server](#local-dev-server)).
+Navigate to the Railway `fission-web` domain or run a local dev build (see
+[Local Dev Server](#local-dev-server)).
 
 1. The UI shows a drop zone on first load.
 2. Drag-and-drop or click **Choose file** to upload a binary.
@@ -158,7 +152,8 @@ Navigate to the deployed Vercel URL or run a local dev build (see [Local Dev Ser
 4. The function list populates in the sidebar.
 5. Click any function to decompile it.
 
-> **Note**: The browser and `fission serve` must be on the same machine (or the same local network with CORS allowed). The default server URL is `http://localhost:7331`.
+> **Local development**: enter `http://localhost:7331` in the backend URL field.
+> Production uses the empty same-origin URL and the Railway gateway.
 
 ---
 
@@ -192,7 +187,8 @@ dx serve --platform web
 
 The dev server watches source files and recompiles on change. Dioxus 0.7 supports hot-reload for RSX templates without a full rebuild.
 
-To use a backend other than `localhost:7331`, set the server URL in the UI settings panel (planned feature) or patch `wasm_api::SERVER_URL` in `fission-ui/src/engine.rs` before building.
+To use a backend other than `localhost:7331`, set the server URL in the
+connection banner. Leave it empty when testing a same-origin gateway.
 
 ### Production Build
 
@@ -201,7 +197,8 @@ To use a backend other than `localhost:7331`, set the server URL in the UI setti
 dx build --platform web --release
 ```
 
-The output directory contains `index.html`, the compiled `.wasm` file, and all bundled assets. This directory is what gets deployed to Vercel.
+The output directory contains `index.html`, the compiled `.wasm` file, and all
+bundled assets. The Railway Docker image copies this directory into Nginx.
 
 To inspect build output size:
 
@@ -222,7 +219,9 @@ codegen-units = 1
 
 ## REST API Reference
 
-All endpoints are served by `fission serve` at `http://localhost:7331` (configurable via `--port`). The server allows CORS from `localhost:3000`, `localhost:8080`, and the Vercel deployment origin.
+In production, all endpoints are exposed through the same Railway frontend
+origin under `/api`. For local development, `fission serve` defaults to
+`http://localhost:7331`.
 
 ### GET /api/status
 
@@ -407,7 +406,8 @@ Returns cross-references for the function at the given hex address.
 
 ### GitHub Actions Workflow
 
-`.github/workflows/deploy.yml` runs on every push to `main` and on pull requests targeting `main`.
+`.github/workflows/ci.yml` runs on every push to `main` and on pull requests
+targeting `main`.
 
 **Steps:**
 
@@ -416,44 +416,23 @@ Returns cross-references for the function at the given hex address.
 | Checkout | `actions/checkout@v4` |
 | Install Rust stable | `dtolnay/rust-toolchain@stable` with `wasm32-unknown-unknown` target |
 | Cache Cargo registry | `actions/cache@v4` keyed on `Cargo.lock` hash |
-| Install Dioxus CLI | `cargo binstall dioxus-cli` via pre-built binary (avoids source compilation) |
-| Download `fission-utils` bundle | Fetches the `assets-v1` release tarball from `fission-systems/Fission`, extracts to workspace root, sets `FISSION_SLEIGH_SPEC_DIR` env var |
+| Install Dioxus CLI | `cargo binstall dioxus-cli --version 0.7.9` |
 | `cargo build --target wasm32-unknown-unknown --release` | Runs first to surface readable Rust errors before `dx build` wraps them |
 | `dx build --platform web --release` | Produces output in `target/dx/fission-web/release/web/public/` |
-| Locate build output | Finds `index.html` via `find target/dx ...`, exports `DX_OUT` |
-| Install Vercel CLI | `npm install -g vercel@latest` |
-| Deploy to Vercel (preview) | Runs on PRs: `vercel deploy "$DX_OUT" --yes` |
-| Deploy to Vercel (production) | Runs on `main` push: `vercel deploy "$DX_OUT" --prod --yes` |
+| Verify output | Requires the generated `index.html` and WASM asset |
 
-### Vercel Deployment
+### Railway Deployment
 
-Vercel's built-in Git integration is intentionally disabled (`"ignoreCommand": "exit 0"` in `vercel.json`). **All deployments go through GitHub Actions only.**
+Railway watches `fission-systems/fission-web` and builds `Dockerfile` on each
+`main` push. The multi-stage image:
 
-This prevents Vercel from trying to run `dx build` on its own servers (which lack Rust and the SLEIGH spec bundle) and avoids double-deploy conflicts.
+1. installs the pinned Dioxus CLI,
+2. compiles the WASM application with a same-origin API base,
+3. copies the static output into Nginx, and
+4. proxies `/api/*` to `fission-backend.railway.internal:7331`.
 
-The GitHub Actions runner:
-1. Compiles the full WASM bundle locally.
-2. Uploads pre-built static files to Vercel via `vercel deploy <dir> --prod`.
-
-Vercel serves the result as a static site — no server-side compute on Vercel's infrastructure.
-
-### Required Secrets
-
-Configure these in the GitHub repository settings under **Settings → Secrets and variables → Actions**:
-
-| Secret | Description |
-|---|---|
-| `VERCEL_TOKEN` | Vercel personal access token (create at vercel.com/account/tokens) |
-| `VERCEL_ORG_ID` | Vercel team or personal account ID (find in `vercel.json` after first `vercel link`) |
-
-To obtain the Vercel project and org IDs:
-
-```bash
-# Run once in the fission-web directory after installing Vercel CLI
-vercel link
-cat .vercel/project.json
-# { "orgId": "...", "projectId": "..." }
-```
+No deployment secrets are compiled into the frontend. The bearer token remains
+runtime-only browser input.
 
 ---
 
@@ -463,9 +442,12 @@ cat .vercel/project.json
 fission-web/
 ├── .github/
 │   └── workflows/
-│       └── deploy.yml          # CI/CD: build WASM + deploy to Vercel
+│       └── ci.yml              # WASM build validation
 ├── assets/
 │   └── style.css               # Global CSS (loaded via Manganis asset! macro)
+├── deploy/
+│   └── nginx/
+│       └── default.conf.template # Static hosting + private API proxy
 ├── src/
 │   ├── main.rs                 # Entry point — console_error_panic_hook + dioxus::launch
 │   ├── state.rs                # Re-export of fission_ui::state (AppState, signals)
@@ -477,7 +459,8 @@ fission-web/
 ├── Cargo.toml                  # Package manifest and dependencies
 ├── Cargo.lock                  # Pinned dependency versions
 ├── Dioxus.toml                 # Dioxus 0.7 project configuration
-├── vercel.json                 # Vercel config (ignoreCommand: exit 0, cleanUrls)
+├── Dockerfile                  # Railway build/runtime image
+├── railway.json                # Railway healthcheck and restart policy
 ├── index.html                  # HTML shell injected by dx build
 ├── AGENTS.md                   # Agent/contributor guide
 └── README.md                   # This file
@@ -509,28 +492,33 @@ script = []
 
 Dioxus 0.7 requires this file to be present and uses it for build metadata. The `asset!()` macro in source files (Manganis) resolves paths relative to the crate root — do not use a leading `/` in asset paths.
 
-### vercel.json
+### railway.json
 
 ```json
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "exit 0",
-  "cleanUrls": true
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile"
+  },
+  "deploy": {
+    "healthcheckPath": "/healthz"
+  }
 }
 ```
 
-- **`ignoreCommand: "exit 0"`** — causes Vercel's Git webhook handler to always skip its own build step (exit code 0 = skip). Deployments come exclusively from GitHub Actions.
-- **`cleanUrls: true`** — strips `.html` extensions from URLs.
+### Nginx Gateway
 
-### Server Port
+The runtime container listens on Railway's `PORT`, serves the Dioxus bundle,
+and forwards `/api/*` to:
 
-The WASM client connects to `http://localhost:7331` by default (defined in `fission-ui/src/engine.rs`). To use a different port, start `fission serve` with `--port <n>`:
-
-```bash
-fission_cli serve --port 9000
+```text
+fission-backend.railway.internal:7331
 ```
 
-Support for configuring the server URL from the UI is planned.
+`client_max_body_size` is aligned with the backend's 50 MB upload limit.
+`FISSION_BACKEND_HOST` and `FISSION_BACKEND_PORT` can override the internal
+target without rebuilding the image.
 
 ---
 
@@ -572,9 +560,11 @@ The last point is the reason `dropzone.rs` uses `wasm_bindgen_futures::spawn_loc
 
 ## Troubleshooting
 
-### "Connect a local fission serve instance to begin analysis"
+### "Enter the API token above to begin analysis"
 
-The WASM client cannot reach `http://localhost:7331`. Ensure:
+The WASM client has not authenticated with the backend. In production, paste
+the Railway bearer token and leave the backend URL empty. For local development,
+ensure:
 
 1. `fission_cli serve --port 7331` is running.
 2. No firewall rule blocks `localhost:7331`.
@@ -585,7 +575,8 @@ The WASM client cannot reach `http://localhost:7331`. Ensure:
 Check the browser developer console (F12) for network errors on `POST /api/binary`. Common causes:
 
 - `fission serve` is not running — connection refused.
-- CORS error — the server only allows origins `localhost:3000`, `localhost:8080`, and the configured Vercel domain. If running the dev server on a different port, the request will be blocked.
+- Local CORS error — add the development origin to the backend allow-list or
+  use the production same-origin Railway gateway.
 - Binary format not supported — the server returns `422 Unprocessable Entity`.
 
 ### Rust panic in the browser
@@ -619,13 +610,11 @@ Or point `FISSION_SLEIGH_SPEC_DIR` at your local Fission checkout:
 export FISSION_SLEIGH_SPEC_DIR=/path/to/Fission/utils/sleigh-specs
 ```
 
-### Vercel deployment shows stale content
-
-Vercel caches assets aggressively. After a new deployment:
+### Railway deployment shows stale content
 
 1. Hard-refresh the browser (`Cmd+Shift+R` / `Ctrl+Shift+R`).
-2. Check the Vercel dashboard to confirm the latest deployment is the active production deployment.
-3. If `gh run list --repo fission-systems/fission-web` shows a recent successful run, the deployment has landed.
+2. Check the Railway `fission-web` deployment status and logs.
+3. Confirm `/healthz` and the hashed WASM asset return HTTP 200.
 
 ### Large WASM binary size
 

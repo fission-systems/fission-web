@@ -98,7 +98,7 @@ pub fn DropZone() -> Element {
                 }
                 h1 { class: "dropzone-title", "Drop a binary to decompile" }
                 p  { class: "dropzone-sub",
-                    "PE, ELF, Mach-O — analysis runs on your local Fission server."
+                    "PE, ELF, Mach-O — analysis runs on the private Fission backend."
                 }
                 label { class: "dropzone-btn", r#for: "file-input-dz",
                     "Choose file"
@@ -123,7 +123,7 @@ pub fn DropZone() -> Element {
                         }
                     }
                 }
-                p { class: "dropzone-note", "Connect a local fission serve instance to begin analysis." }
+                p { class: "dropzone-note", "Enter the API token above to begin analysis." }
             }
         }
     }

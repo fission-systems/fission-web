@@ -3,11 +3,11 @@
 ## Overview
 
 fission-web is a Dioxus WASM frontend for the Fission decompiler.
-The current production backend is a user-run local `fission serve` process.
-The browser uploads the selected binary to that configured backend, which owns
-decompilation and resolves SLEIGH/signature resources from the host filesystem.
-A future browser-worker backend may use explicitly selected or packaged resource
-artifacts; browser code must never claim direct access to arbitrary local paths.
+The production deployment runs entirely on Railway. A public Nginx service
+serves the Dioxus WASM bundle and proxies same-origin `/api/*` requests to the
+private `fission-backend.railway.internal` service. The backend owns
+decompilation and resolves versioned SLEIGH/signature resources from its
+container. Local development may still connect to a user-run `fission serve`.
 
 ## Structure
 
@@ -26,7 +26,9 @@ fission-web/
 ├── assets/
 │   └── style.css         # Design system
 ├── index.html            # Dioxus web entry
-├── vercel.json           # Vercel static deployment
+├── Dockerfile            # Railway WASM build + Nginx runtime
+├── deploy/nginx/         # Same-origin API gateway configuration
+├── railway.json          # Railway build and healthcheck contract
 └── Cargo.toml
 ```
 
@@ -37,7 +39,7 @@ fission-web/
 | File loading     | `rfd` native dialog       | browser `<input>` / drag-drop  |
 | Background tasks | `tokio::task::spawn_blocking` | `wasm_bindgen_futures::spawn_local` |
 | File API         | `std::fs`                 | `web-sys FileReader`           |
-| Threading        | OS threads                | async WASM client + local backend |
+| Threading        | OS threads                | async WASM client + Railway backend |
 | Build            | `cargo build`             | `dx build --platform web`      |
 
 ## Build / Dev Commands
@@ -59,8 +61,8 @@ cargo check --target wasm32-unknown-unknown
 2. Never use `std::fs` — use `web-sys` File/FileReader API.
 3. All Fission core logic must remain in `fission-systems/Fission` crates.
 4. This repo contains only the UI adapter layer.
-5. Describe the active trust boundary precisely: default analysis sends binary
-   bytes to the user-configured `fission serve` backend, normally localhost.
+5. Describe the active trust boundary precisely: production analysis sends
+   binary bytes through the public Railway gateway to the private backend.
 6. Browsers cannot automatically read `FISSION_RESOURCE_ROOT` or arbitrary host
    paths. Local-server resources and explicitly selected browser bundles are
    distinct resource modes.

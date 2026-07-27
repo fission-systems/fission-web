@@ -1,0 +1,55 @@
+name: Web CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build WASM
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout fission-web
+        uses: actions/checkout@v4
+
+      # ── Rust / WASM toolchain ─────────────────────────────────────────────
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Cargo registry + git deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Install Dioxus CLI
+        run: |
+          curl -L --proto '=https' --tlsv1.2 -sSf \
+            https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh \
+            | bash
+          cargo binstall dioxus-cli --version 0.7.9 --no-confirm
+
+      # ── Build ─────────────────────────────────────────────────────────────
+
+      - name: Cargo build (wasm32) — show real errors on failure
+        run: cargo build --target wasm32-unknown-unknown --release 2>&1
+
+      - name: Build WASM (release)
+        run: dx build --platform web --release
+
+      - name: Verify build output
+        run: |
+          test -f target/dx/fission-web/release/web/public/index.html
+          test -n "$(find target/dx/fission-web/release/web/public -name '*.wasm' -print -quit)"

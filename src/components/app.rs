@@ -181,14 +181,14 @@ pub fn App() -> Element {
                         }
                     }
                     span { class: "server-banner-text",
-                        "Connect to a local or Railway-hosted Fission backend."
+                        "Enter the API token to connect to the private Fission backend."
                     }
                     div { class: "backend-connect",
                         input {
                             class: "backend-input backend-url-input",
                             r#type: "url",
                             value: "{backend_url}",
-                            placeholder: "https://fission-api.up.railway.app",
+                            placeholder: "Same origin, or http://localhost:7331 for development",
                             aria_label: "Fission backend URL",
                             oninput: move |event| {
                                 *backend_url.write() = event.value();
@@ -224,7 +224,7 @@ pub fn App() -> Element {
                         class: "server-banner-link",
                         href: "https://github.com/fission-systems/Fission/blob/main/docs/RAILWAY.md",
                         target: "_blank",
-                        "Setup guide"
+                        "Deployment guide"
                     }
                 }
             }

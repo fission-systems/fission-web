@@ -1,7 +1,0 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "cargo install dioxus-cli --version 0.7.9 --locked && rustup target add wasm32-unknown-unknown",
-  "buildCommand": "dx build --platform web --release",
-  "outputDirectory": "target/dx/fission-web/release/web/public",
-  "cleanUrls": true
-}
