@@ -181,7 +181,8 @@ pub fn App() -> Element {
                         }
                     }
                     span { class: "server-banner-text",
-                        "Enter the API token to connect to the private Fission backend."
+                        "Can't reach the Fission backend. If it's running elsewhere, or your \
+                         deployment requires a token, set them below."
                     }
                     div { class: "backend-connect",
                         input {
@@ -198,7 +199,7 @@ pub fn App() -> Element {
                             class: "backend-input backend-token-input",
                             r#type: "password",
                             value: "{api_token}",
-                            placeholder: "API token (cloud only)",
+                            placeholder: "API token (only if your deployment requires one)",
                             autocomplete: "off",
                             aria_label: "Fission backend API token",
                             oninput: move |event| {
