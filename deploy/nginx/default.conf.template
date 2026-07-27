@@ -10,6 +10,21 @@ server {
     listen [::]:${PORT};
     server_name _;
 
+    # Railway's edge terminates the real client connection and proxies to
+    # this container from a rotating internal pool (observed: 100.64.0.0/10,
+    # CGNAT space, a *different* address on nearly every request) -- without
+    # this, `$binary_remote_addr` below sees that rotating edge IP, not the
+    # real client, and `limit_req` effectively rate-limits nothing (every
+    # request looks like a brand-new "IP"). `real_ip` resolves `$remote_addr`
+    # (and everything derived from it, including `$binary_remote_addr`) from
+    # the trusted `X-Forwarded-For` hop instead, only when the connecting
+    # peer is itself in that trusted range -- so a client can't spoof its
+    # way around this by setting its own `X-Forwarded-For`, only Railway's
+    # own edge (the actual TCP peer) is trusted to set it.
+    set_real_ip_from 100.64.0.0/10;
+    real_ip_header X-Forwarded-For;
+    real_ip_recursive on;
+
     root /usr/share/nginx/html;
     index index.html;
 
