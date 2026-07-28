@@ -123,7 +123,7 @@ pub fn DropZone() -> Element {
                         }
                     }
                 }
-                p { class: "dropzone-note", "Enter the API token above to begin analysis." }
+                p { class: "dropzone-note", "Analysis runs on the connected Fission backend." }
             }
         }
     }
