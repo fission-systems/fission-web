@@ -92,7 +92,7 @@ pub fn App() -> Element {
         let s = state.read();
         if s.is_loading_binary     { ("status-indicator busy",     "Loading")     }
         else if s.is_decompiling   { ("status-indicator busy",     "Decompiling") }
-        else if s.binary.is_some() { ("status-indicator ready",   "Ready")        }
+        else if s.has_binary_loaded() { ("status-indicator ready",   "Ready")        }
         else                       { ("status-indicator inactive", "Idle")         }
     };
 
@@ -255,7 +255,7 @@ pub fn App() -> Element {
                     div { class: "{indicator_cls}" }
                     span { "{status_text}" }
                 }
-                if state.read().binary.is_some() {
+                if state.read().has_binary_loaded() {
                     div { class: "status-segment",
                         "{state.read().functions.len()} functions"
                     }

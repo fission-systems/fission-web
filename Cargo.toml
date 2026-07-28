@@ -31,10 +31,13 @@ gloo-net = { version = "0.6", features = ["http"] }
 console_error_panic_hook = "0.1"
 
 # Fission shared UI — git dependency (includes state, engine, components).
-# Pinned to a release tag, not `main` HEAD: fission-web deploys per Fission
-# release, not on every push. Bump alongside `[package].version` and re-tag
-# fission-web to match whenever a new Fission version tag ships.
-fission-ui = { git = "https://github.com/fission-systems/Fission", tag = "v0.1.7", default-features = false }
+# Pinned to an exact commit, not the v0.1.7 tag: 9f7ad9e1 fixes a critical
+# bug (sidebar/editor stuck on "no binary loaded" on the cloud/web backend
+# forever, even after a fully successful upload+functions fetch -- see that
+# commit) that's worth shipping now rather than waiting for the next
+# tagged Fission release. Switch back to `tag = "vX.Y.Z"` (dropping `rev`)
+# once a release containing this fix ships.
+fission-ui = { git = "https://github.com/fission-systems/Fission", rev = "9f7ad9e1b8f0a8fa2eca7b37535bf8b5a7fd3de5", default-features = false }
 
 [profile.release]
 opt-level = "z"     # minimize WASM size
