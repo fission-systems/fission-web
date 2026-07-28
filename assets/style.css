@@ -322,12 +322,19 @@ body {
 
 /* ─── SIDEBAR ─── */
 .sidebar-wrapper {
+  /* `container-type: inline-size` contains this element's own inline size --
+     it can no longer size itself from its child's (.sidebar's) width, which
+     collapsed it to 0 in a flex row with no explicit width of its own. Give
+     it the same explicit width as .sidebar so containment has something to
+     measure against. */
   container-type: inline-size;
   container-name: sidebar;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   flex-shrink: 0;
+  width: var(--w-sidebar);
+  min-width: 160px;
 }
 
 .sidebar {
