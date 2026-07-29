@@ -39,7 +39,7 @@ console_error_panic_hook = "0.1"
 # worth shipping now rather than waiting for the next tagged Fission
 # release. Switch back to `tag = "vX.Y.Z"` (dropping `rev`) once a release
 # containing these fixes ships.
-fission-ui = { git = "https://github.com/fission-systems/Fission", rev = "450088bf5d2665946ce1c95010c12579e0521831", default-features = false }
+fission-ui = { git = "https://github.com/fission-systems/Fission", rev = "118f119a69d23f29dbc40445c52b395440ebcb43", default-features = false }
 
 [profile.release]
 opt-level = "z"     # minimize WASM size
