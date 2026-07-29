@@ -341,6 +341,16 @@ body {
   width: var(--w-sidebar);
   min-width: 160px;
   flex-shrink: 0;
+  /* `flex: 1; min-height: 0;` on a column flex item inside `.sidebar-wrapper`:
+     without these, this sizes to its own content's height (fine when
+     virtual scroll only ever rendered ~30 real rows, but with every row
+     rendered now -- 535+ functions -- content height balloons far past the
+     viewport, and since nothing constrains this element to its parent's
+     height, .function-list's own `overflow-y: auto` never gets a bounded
+     box to actually scroll within; it all just gets silently clipped by an
+     ancestor's `overflow: hidden` instead, so scrolling does nothing. */
+  flex: 1;
+  min-height: 0;
   background: var(--sf-1);
   border-right: 1px solid var(--bdr-faint);
   display: flex;
