@@ -5,11 +5,18 @@
 use dioxus::prelude::*;
 use dioxus::web::WebEventExt;
 use fission_ui::{
-    engine::run_load,
+    engine::{poll_functions, run_load},
     state::{AppState, LogEntry, use_app_state},
 };
 use wasm_bindgen::JsCast;
 use web_sys::{FileReader, ProgressEvent};
+
+/// Ceiling on how long to keep polling for background discovery results
+/// before giving up silently (session TTL default is 30 min server-side;
+/// this is just a client-side safety net against polling forever if a
+/// session is somehow stuck `analyzing`).
+const MAX_POLL_ATTEMPTS: u32 = 200; // ~200 * 1.5s = 5 minutes
+const POLL_INTERVAL_MS: u32 = 1500;
 
 pub(crate) fn read_file_and_load(file: web_sys::File, mut sig: Signal<AppState>) {
     let name  = file.name();
@@ -35,13 +42,23 @@ pub(crate) fn read_file_and_load(file: web_sys::File, mut sig: Signal<AppState>)
 
             match run_load(bytes, name_clone.clone()).await {
                 Ok(load) => {
-                    let mut s = sig.write();
-                    s.binary_name        = Some(name_clone);
-                    s.binary             = load.binary;
-                    s.functions          = load.functions;
-                    s.server_session_id  = load.session_id;
-                    s.is_loading_binary  = false;
-                    s.push_log(LogEntry::info(load.summary));
+                    let session_id = load.session_id.clone();
+                    let analyzing  = load.analyzing;
+                    {
+                        let mut s = sig.write();
+                        s.binary_name        = Some(name_clone);
+                        s.binary             = load.binary;
+                        s.functions          = load.functions;
+                        s.server_session_id  = load.session_id;
+                        s.is_loading_binary  = false;
+                        s.is_analyzing       = analyzing;
+                        s.push_log(LogEntry::info(load.summary));
+                    }
+                    if analyzing {
+                        if let Some(session_id) = session_id {
+                            wasm_bindgen_futures::spawn_local(poll_until_analyzed(session_id, sig));
+                        }
+                    }
                 }
                 Err(e) => {
                     let mut s = sig.write();
@@ -55,6 +72,34 @@ pub(crate) fn read_file_and_load(file: web_sys::File, mut sig: Signal<AppState>)
     reader.set_onload(Some(onload.as_ref().unchecked_ref()));
     onload.forget();
     reader.read_as_array_buffer(&file).unwrap();
+}
+
+/// Re-fetch the function list every `POLL_INTERVAL_MS` until the server
+/// reports background CFG discovery is done, then apply the fuller list.
+/// The already-loaded loader-only functions stay visible/usable the whole
+/// time -- this only ever adds to what's shown, never blocks interaction.
+async fn poll_until_analyzed(session_id: String, mut sig: Signal<AppState>) {
+    for _ in 0..MAX_POLL_ATTEMPTS {
+        gloo_timers::future::TimeoutFuture::new(POLL_INTERVAL_MS).await;
+
+        // Bail if the user switched to a different binary in the meantime.
+        if sig.read().server_session_id.as_deref() != Some(session_id.as_str()) {
+            return;
+        }
+
+        match poll_functions(&session_id).await {
+            Ok((functions, still_analyzing)) => {
+                let mut s = sig.write();
+                s.functions    = functions;
+                s.is_analyzing = still_analyzing;
+                if !still_analyzing {
+                    return;
+                }
+            }
+            Err(_) => return, // session expired or backend unreachable; stop quietly
+        }
+    }
+    sig.write().is_analyzing = false;
 }
 
 #[component]
