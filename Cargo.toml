@@ -54,7 +54,7 @@ console_error_panic_hook = "0.1"
 # repositioning already-rendered rows), which is what let this reintroduce
 # windowed rendering without the scroll-position-fighting failure modes that
 # killed the two earlier virtual-scroll attempts referenced above.
-fission-ui = { git = "https://github.com/fission-systems/Fission", rev = "9deeaf7871ed04eabd7d073001736b6940f217ed", default-features = false }
+fission-ui = { git = "https://github.com/fission-systems/Fission", rev = "c5ae7832024e6112fa3375141ae959b2bce36203", default-features = false }
 
 [profile.release]
 opt-level = "z"     # minimize WASM size

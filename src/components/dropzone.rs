@@ -52,6 +52,20 @@ pub(crate) fn read_file_and_load(file: web_sys::File, mut sig: Signal<AppState>)
                         s.server_session_id  = load.session_id;
                         s.is_loading_binary  = false;
                         s.is_analyzing       = analyzing;
+                        // Loading a new binary invalidates everything scoped
+                        // to the previous one -- most importantly
+                        // `decompile_cache`, which is keyed only by address:
+                        // without this, selecting a function in the new
+                        // binary that happens to share an address with one
+                        // already decompiled from the old binary would
+                        // silently show the *old* binary's pseudocode.
+                        s.current_function_addr = None;
+                        s.decompiled_code    = None;
+                        s.decompiled_nir     = None;
+                        s.current_cfg        = None;
+                        s.decompile_cache.clear();
+                        s.rename_map.clear();
+                        s.comments.clear();
                         s.push_log(LogEntry::info(load.summary));
                     }
                     if analyzing {
