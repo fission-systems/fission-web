@@ -184,7 +184,27 @@ pub fn App() -> Element {
                         "Can't reach the Fission backend. If it's running elsewhere, or your \
                          deployment requires a token, set them below."
                     }
-                    div { class: "backend-connect",
+                    form {
+                        class: "backend-connect",
+                        // A `type=password` input outside a `<form>` trips
+                        // browsers' password-manager heuristics (logged as a
+                        // console warning, and some autofill/save-password
+                        // prompts just don't engage) -- wrapping it here and
+                        // driving the connect action off `onsubmit` instead
+                        // of the button's own `onclick` means Enter in
+                        // either field submits too, which is also just the
+                        // behavior a text field next to a button implies.
+                        onsubmit: move |e| {
+                            e.prevent_default();
+                            let url = backend_url.read().trim().to_string();
+                            let token = api_token.read().clone();
+                            set_server_url(url.clone());
+                            set_server_api_token(token);
+                            state.write().server_url = url;
+                            wasm_bindgen_futures::spawn_local(async move {
+                                check_server(state).await;
+                            });
+                        },
                         input {
                             class: "backend-input backend-url-input",
                             r#type: "url",
@@ -208,16 +228,7 @@ pub fn App() -> Element {
                         }
                         button {
                             class: "backend-connect-btn",
-                            onclick: move |_| {
-                                let url = backend_url.read().trim().to_string();
-                                let token = api_token.read().clone();
-                                set_server_url(url.clone());
-                                set_server_api_token(token);
-                                state.write().server_url = url;
-                                wasm_bindgen_futures::spawn_local(async move {
-                                    check_server(state).await;
-                                });
-                            },
+                            r#type: "submit",
                             "Connect"
                         }
                     }
