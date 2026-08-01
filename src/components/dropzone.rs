@@ -46,26 +46,19 @@ pub(crate) fn read_file_and_load(file: web_sys::File, mut sig: Signal<AppState>)
                     let analyzing  = load.analyzing;
                     {
                         let mut s = sig.write();
+                        // Loading a new binary invalidates everything scoped
+                        // to the previous one (decompile_cache, xrefs, CFG,
+                        // disasm, nav history, ...) -- see
+                        // AppState::reset_for_new_binary's doc comment for
+                        // why leaving any of these stale is more than
+                        // cosmetic.
+                        s.reset_for_new_binary();
                         s.binary_name        = Some(name_clone);
                         s.binary             = load.binary;
                         s.functions          = load.functions;
                         s.server_session_id  = load.session_id;
                         s.is_loading_binary  = false;
                         s.is_analyzing       = analyzing;
-                        // Loading a new binary invalidates everything scoped
-                        // to the previous one -- most importantly
-                        // `decompile_cache`, which is keyed only by address:
-                        // without this, selecting a function in the new
-                        // binary that happens to share an address with one
-                        // already decompiled from the old binary would
-                        // silently show the *old* binary's pseudocode.
-                        s.current_function_addr = None;
-                        s.decompiled_code    = None;
-                        s.decompiled_nir     = None;
-                        s.current_cfg        = None;
-                        s.decompile_cache.clear();
-                        s.rename_map.clear();
-                        s.comments.clear();
                         s.push_log(LogEntry::info(load.summary));
                     }
                     if analyzing {
