@@ -1,6 +1,6 @@
 [package]
 name = "fission-web"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2021"
 description = "Fission decompiler — browser-native interface (Dioxus WASM)"
 repository = "https://github.com/fission-systems/fission-web"
@@ -54,7 +54,7 @@ console_error_panic_hook = "0.1"
 # repositioning already-rendered rows), which is what let this reintroduce
 # windowed rendering without the scroll-position-fighting failure modes that
 # killed the two earlier virtual-scroll attempts referenced above.
-fission-ui = { git = "https://github.com/fission-systems/Fission", rev = "2080a9c6cc3f4ce96b8850d0ac6995904abc8ece", default-features = false }
+fission-ui = { git = "https://github.com/fission-systems/Fission", tag = "v0.1.8", default-features = false }
 
 [profile.release]
 opt-level = "z"     # minimize WASM size
